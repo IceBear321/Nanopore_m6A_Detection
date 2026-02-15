@@ -1,59 +1,59 @@
-# Step 1: 碱基识别 (Basecalling)
+# Step 1: Basecalling
 
-## 目的
+## Purpose
 
-将纳米孔测序产生的原始电信号数据(.pod5)转换为核苷酸序列(.fastq)。现代碱基识别器可以直接识别并标记修饰碱基(m6A等)。
+Convert raw Nanopore sequencing signal data (.pod5) to nucleotide sequences (.fastq). Modern basecallers can directly identify and label modified bases (m6A, etc.).
 
-## 工具选择
+## Tool Selection
 
-### Dorado (推荐)
+### Dorado (Recommended)
 
-ONT官方推荐的碱基识别工具，支持GPU加速。
+ONT-official basecalling tool with GPU acceleration support.
 
-**安装:**
+**Installation:**
 ```bash
-# 下载预编译版本
+# Download precompiled version
 wget https://github.com/nanoporetech/dorado/releases/download/v0.8.1/dorado-0.8.1-linux-x64.tar.gz
 tar -xzf dorado-0.8.1-linux-x64.tar.gz
 export PATH=$PATH:/path/to/dorado-0.8.1-linux-x64/bin
 
-# 验证安装
+# Verify installation
 dorado --version
 ```
 
 ### Guppy
 
-ONT官方工具，GPU和CPU版本都可用。
+ONT official tool, both GPU and CPU versions available.
 
 ```bash
-# conda安装
+# conda installation
 conda install -c conda-forge ont-guppy
 
-# 或使用docker
+# Or use docker
 docker pull ontporetech/guppy:7.0.0
 ```
 
-## 模型选择
+## Model Selection
 
-### R10.4.1 (最新)
+### R10.4.1 (Latest)
 
-| 模型 | 精度 | 速度 | 修饰检测 |
-|------|------|------|----------|
-| dna_r10.4.1_e8.2_400bps_hac | 高 | 中 | 支持 |
-| dna_r10.4.1_e8.2_400bps_sup | 最高 | 慢 | 支持 |
-| dna_r10.4.1_e8.2_400bps_fast | 中 | 快 | 支持 |
+| Model | Accuracy | Speed | Modification Detection |
+|-------|----------|--------|----------------------|
+| dna_r10.4.1_e8.2_400bps_hac | High | Medium | Supported |
+| dna_r10.4.1_e8.2_400bps_sup | Highest | Slow | Supported |
+| dna_r10.4.1_e8.2_400bps_fast | Medium | Fast | Supported |
 
-### R9.4.1 (经典)
+### R9.4.1 (Classic)
 
-| 模型 | 精度 | 速度 |
-|------|------|------|
-| dna_r9.4.1_e8_hac | 高 | 中 |
-| dna_r9.4.1_e8_sup | 最高 | 慢 |
-| dna_r9.4.1_e8_fast | 中 | 快 |
+| Model | Accuracy | Speed |
+|-------|----------|--------|
+| dna_r9.4.1_e8_hac | High | Medium |
+| dna_r9.4.1_e8_sup | Highest | Slow |
+| dna_r9.4.1_e8_fast | Medium | Fast |
 
-## 命令详解
+## Command Details
 
-### 基础命令
+### Basic Command
 
 ```bash
 dorado basecaller \
@@ -63,130 +63,130 @@ dorado basecaller \
     reads.pod5 > basecalls.bam
 ```
 
-### 关键参数
+### Key Parameters
 
-| 参数 | 说明 | 推荐值 |
-|------|------|--------|
-| `--emit-moves` | 保留修饰碱基信息 | 必须加 |
-| `--mod-base-models` | 启用修饰检测模型 | dna_r10.4.1_e8.2_400bps_hac |
-| `--threads` | 线程数 | 16-32 |
-| `--batch-size` | 批处理大小 | 1000 |
-| `--min-qscore` | 最小质量分数 | 10 |
+| Parameter | Description | Recommended |
+|-----------|-------------|-------------|
+| `--emit-moves` | Preserve modification information | Must include |
+| `--mod-base-models` | Enable modification detection model | dna_r10.4.1_e8.2_400bps_hac |
+| `--threads` | Thread count | 16-32 |
+| `--batch-size` | Batch size | 1000 |
+| `--min-qscore` | Minimum quality score | 10 |
 
-### 输出格式转换
+### Output Format Conversion
 
 ```bash
-# BAM转FASTQ
+# BAM to FASTQ
 samtools fastq basecalls.bam > reads.fastq
 
-# 直接输出FASTQ (需较新版本)
+# Direct FASTQ output (requires newer version)
 dorado basecaller ... --fastq > reads.fastq
 ```
 
-## 输入文件格式
+## Input File Format
 
-### .pod5 文件
+### .pod5 File
 
-**文件结构:**
-- 二进制格式
-- 包含原始电流信号
-- 每个read有对应的时间戳和通道信息
+**File Structure:**
+- Binary format
+- Contains raw current signals
+- Each read has corresponding timestamp and channel information
 
-**查看信息:**
+**View Information:**
 ```bash
 pod5 view --stats reads.pod5
 pod5 count reads.pod5
 ```
 
-**文件大小:**
-- 每个read约2-5KB
-- 100万reads约2-5GB
+**File Size:**
+- ~2-5KB per read
+- ~2-5GB for 1 million reads
 
-## 修饰检测原理
+## Modification Detection Principle
 
-### Mm/MI标签
+### Mm/MI Tags
 
-Dorado在碱基识别过程中会生成修饰信息:
+Dorado generates modification information during basecalling:
 
 ```
-MM:Z:m+6A    # m6A修饰
-ML:B:C,255   # 置信度分数
+MM:Z:m+6A    # m6A modification
+ML:B:C,255   # Confidence score
 ```
 
-**标签说明:**
-- `MM`: 修饰碱基类型和位置
-- `ML`: 修饰置信度 (0-255)
+**Tag Description:**
+- `MM`: Modification type and position
+- `ML`: Modification confidence (0-255)
 
-## 常见问题
+## Common Issues
 
-### 问题1: GPU内存不足
+### Issue 1: GPU Out of Memory
 
-**症状:**
+**Symptoms:**
 ```
 CUDA out of memory
 ```
 
-**解决方案:**
+**Solutions:**
 ```bash
-# 减少batch-size
+# Reduce batch-size
 dorado basecaller --batch-size 500 ...
 
-# 或使用CPU模式
+# Or use CPU mode
 dorado basecaller --device cpu ...
 ```
 
-### 问题2: 速度太慢
+### Issue 2: Too Slow
 
-**解决方案:**
+**Solutions:**
 ```bash
-# 使用fast模型
+# Use fast model
 dorado basecaller dna_r10.4.1_e8.2_400bps_fast ...
 
-# 增加batch-size
+# Increase batch-size
 dorado basecaller --batch-size 2000 ...
 ```
 
-### 问题3: 修饰检测失败
+### Issue 3: Modification Detection Failed
 
-**检查项:**
-1. 确认使用--emit-moves参数
-2. 确认使用支持modification的模型
-3. 检查Dorado版本(需>=0.7.0)
+**Check Items:**
+1. Confirm using --emit-moves parameter
+2. Confirm using modification-supported model
+3. Check Dorado version (must be >=0.7.0)
 
 ```bash
-# 检查版本
+# Check version
 dorado --version
 
-# 验证修饰标签
+# Verify modification tags
 samtools view basecalls.bam | head | grep "MM:Z:"
 ```
 
-### 问题4: pod5文件损坏
+### Issue 4: pod5 File Corrupted
 
-**检测:**
+**Detection:**
 ```bash
 pod5 view --stats reads.pod5
 
-# 修复(如有必要)
+# Repair if necessary
 pod5 validate reads.pod5
 ```
 
-## 性能基准
+## Performance Benchmarks
 
-| 测序仪 | GPU | 模型 | 速度(reads/s) |
-|--------|-----|------|---------------|
+| Sequencer | GPU | Model | Speed (reads/s) |
+|-----------|-----|-------|-----------------|
 | PromethION | A100 | hac | ~3000 |
 | PromethION | A100 | sup | ~1500 |
 | MinION | RTX3090 | hac | ~450 |
 | MinION | RTX3090 | fast | ~800 |
 
-## 输出验证
+## Output Verification
 
 ```bash
-# 统计reads数量
+# Count reads
 samtools view -c basecalls.bam
 
-# 查看序列质量分布
+# View quality distribution
 samtools fastq basecalls.bam | \
     awk 'NR%4==0' | \
     tr -d '\n' | \
@@ -195,7 +195,7 @@ samtools fastq basecalls.bam | \
     uniq -c | \
     sort -rn
 
-# 检查修饰标签
+# Check modification tags
 samtools view basecalls.bam | \
     grep -o 'MM:Z:[^ ]*' | \
     sort | \

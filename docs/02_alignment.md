@@ -1,59 +1,59 @@
-# Step 2: 序列比对 (Alignment)
+# Step 2: Sequence Alignment
 
-## 目的
+## Purpose
 
-将碱基识别产生的序列reads比对到参考基因组，生成包含位置信息的BAM文件。此步骤需要保留修饰碱基的MM/MI标签信息，同时进行质量控制。
+Align sequence reads from basecalling to the reference genome to generate BAM files containing position information. This step needs to preserve MM/MI tag information for modified bases while performing quality control.
 
-## 完整工作流程
+## Complete Workflow
 
 ```
-输入FASTQ → pychopper修剪 → NanoFilt过滤 → minimap2比对 → SAM→BAM → 排序 → 去重 → 索引
+Input FASTQ → pychopper → NanoFilt → minimap2 → SAM→BAM → Sort → Deduplicate → Index
 ```
 
-## 工具
+## Tools
 
-### Minimap2 (推荐)
+### Minimap2 (Recommended)
 
-专为长读长序列设计的快速比对工具。
+Fast alignment tool designed for long-read sequences.
 
-**安装:**
+**Installation:**
 ```bash
 conda install -c bioconda minimap2
-# 或编译安装
+# Or compile from source
 git clone https://github.com/lh3/minimap2
 cd minimap2 && make
 ```
 
-## 命令详解
+## Command Details
 
-### 完整比对流程
+### Complete Alignment Workflow
 
 ```bash
-# 1. pychopper修剪 (去除低质量序列和接头)
+# 1. pychopper (remove low-quality sequences and adapters)
 pychopper -t 8 input.fastq output.fq
 
-# 2. NanoFilt过滤 (质量过滤和长度过滤)
+# 2. NanoFilt (quality and length filtering)
 NanoFilt -l 50 -q 7 output.fq > output.clear.fq
 
-# 3. minimap2比对
+# 3. minimap2 alignment
 minimap2 -ax map-ont -t 8 -uf -k 14 \
     reference.fa \
     output.clear.fq > output.sam
 
-# 4. SAM转BAM
+# 4. SAM to BAM
 samtools view -@ 8 -Sb output.sam > output.unsorted.bam
 
-# 5. 排序
+# 5. Sort
 samtools sort -@ 8 -o output.sorted.bam -T tmp output.unsorted.bam
 
-# 6. 去重
+# 6. Deduplicate
 samtools markdup -@ 8 -r output.sorted.bam output.rmdup.bam
 
-# 7. 索引
+# 7. Index
 samtools index output.rmdup.bam
 ```
 
-### minimap2 关键参数
+### minimap2 Key Parameters
 
 ```bash
 minimap2 -ax map-ont -t 8 -uf -k 14 \
@@ -61,198 +61,198 @@ minimap2 -ax map-ont -t 8 -uf -k 14 \
     reads.fastq > output.sam
 ```
 
-| 参数 | 说明 | 推荐值 | 解释 |
-|------|------|--------|------|
-| `-ax map-ont` | 比对模式 | 必须 | 专为ONT长读长优化 |
-| `-t` | 线程数 | 8-16 | 根据CPU核心数调整 |
-| `-uf` | 只比对正向链 | 可选 | 用于RNA-seq |
-| `-k` | k-mer大小 | 14 | R10.4用14,R9.4用15 |
-| `-K` | 批处理大小 | 1G | 影响内存和速度 |
-| `--MD` | 保留MD标签 | 推荐 | 用于修饰检测 |
-| `-r` | 误差率 | 0 | 使用实际误差率 |
+| Parameter | Description | Recommended | Explanation |
+|-----------|-------------|------------|-------------|
+| `-ax map-ont` | Alignment mode | Required | Optimized for ONT long reads |
+| `-t` | Thread count | 8-16 | Adjust based on CPU cores |
+| `-uf` | Forward strand only | Optional | For RNA-seq |
+| `-k` | k-mer size | 14 | Use 14 for R10.4, 15 for R9.4 |
+| `-K` | Batch size | 1G | Affects memory and speed |
+| `--MD` | Preserve MD tags | Recommended | For modification detection |
+| `-r` | Error rate | 0 | Use actual error rate |
 
-#### 参数详解
+#### Parameter Details
 
 **-ax map-ont**
 ```
-可用模式:
-- map-ont:    ONT长读长 (推荐)
-- map-hifi:   PacBio HiFi读长
-- map-pb:     PacBio CLR读长
-- asm20:      基因组组装 (低一致性)
-- asm5:       基因组组装 (中等一致性)
-- splice:     有剪接感知 (RNA-seq)
+Available modes:
+- map-ont:    ONT long reads (Recommended)
+- map-hifi:   PacBio HiFi reads
+- map-pb:     PacBio CLR reads
+- asm20:      Genome assembly (low consistency)
+- asm5:       Genome assembly (medium consistency)
+- splice:    Splice-aware (RNA-seq)
 ```
 
-**-k 参数选择**
+**-k Parameter Selection**
 ```bash
-# R10.4 测序仪 (更高精度)
+# R10.4 sequencer (higher accuracy)
 minimap2 -k 14 ...
 
-# R9.4 测序仪
+# R9.4 sequencer
 minimap2 -k 15 ...
 
-# 更短的k-mer可提高灵敏度，但可能增加错误
+# Shorter k-mer increases sensitivity but may add errors
 minimap2 -k 12 ...
 ```
 
-**-uf 参数 (Forward-only)**
+**-uf Parameter (Forward-only)**
 ```
--uf: 只比对到参考基因组的正向链
-用途:
-- RNA-seq:  只保留转录本比对
-- 避免比对到反义链的干扰
+-uf: Only align to forward strand of reference genome
+Use cases:
+- RNA-seq:  Only keep transcript alignments
+- Avoid antisense strand interference
 ```
 
-### pychopper 修剪
+### pychopper
 
-**作用:** 去除接头序列和低质量区域
+**Purpose:** Remove adapter sequences and low-quality regions
 
 ```bash
 pychopper -t 8 input.fastq output.fq
 ```
 
-| 参数 | 说明 |
-|------|------|
-| `-t` | 线程数 |
-| `-r` | 报告文件 |
-| `-S` | 统计文件 |
+| Parameter | Description |
+|-----------|-------------|
+| `-t` | Thread count |
+| `-r` | Report file |
+| `-S` | Statistics file |
 
-### NanoFilt 过滤
+### NanoFilt
 
-**作用:** 质量过滤和长度过滤
+**Purpose:** Quality filtering and length filtering
 
 ```bash
 NanoFilt -l 50 -q 7 input.fq > output.fq
 ```
 
-| 参数 | 说明 | 推荐值 |
-|------|------|--------|
-| `-l` | 最小长度 | 50-100 |
-| `-q` | 最小质量分数 | 7-10 |
-| `--head` | 保留前N条reads | - |
-| `--tail` | 保留后N条reads | - |
+| Parameter | Description | Recommended |
+|-----------|-------------|-------------|
+| `-l` | Minimum length | 50-100 |
+| `-q` | Minimum quality score | 7-10 |
+| `--head` | Keep first N reads | - |
+| `--tail` | Keep last N reads | - |
 
-### SAM处理
+### SAM Processing
 
 ```bash
-# SAM转BAM
+# SAM to BAM
 samtools view -@ 8 -Sb input.sam > input.bam
 
-# 排序
+# Sort
 samtools sort -@ 8 -o sorted.bam -T tmp input.bam
 
-# 去重
+# Deduplicate
 samtools markdup -@ 8 -r sorted.bam rmdup.bam
 
-# 索引
+# Index
 samtools index rmdup.bam
 ```
 
-## 索引准备
+## Index Preparation
 
-### 创建参考基因组索引
+### Create Reference Genome Index
 
 ```bash
-# minimap2索引 (推荐预建)
+# minimap2 index (recommended to pre-build)
 minimap2 -d genome.fa.mmi genome.fa
 
-# samtools索引
+# samtools index
 samtools faidx genome.fa
 ```
 
-### 检查索引
+### Check Index
 
 ```bash
-# 检查索引文件
+# Check index files
 ls -lh genome.fa.mmi genome.fa.fai
 
-# 验证索引可用
+# Verify index is usable
 samtools faidx genome.fa chr1:1-1000
 ```
 
-## 输出格式
+## Output Format
 
-### BAM文件结构
+### BAM File Structure
 
-| 字段 | 说明 | 示例 |
-|------|------|------|
-| QNAME | Read名称 | read_001 |
-| FLAG | 比对状态 | 0 (正向) / 16 (反向) |
-| RNAME | 染色体 | chr1 |
-| POS | 起始位置 | 1234567 |
-| MAPQ | 比对质量 | 60 |
-| CIGAR | 比对详情 | 150M |
-| SEQ | 序列 | ATCG... |
-| QUAL | 质量分数 | IIII... |
-| TAGS | 修饰标签 | MM:Z:m+6A |
+| Field | Description | Example |
+|-------|-------------|---------|
+| QNAME | Read name | read_001 |
+| FLAG | Alignment status | 0 (forward) / 16 (reverse) |
+| RNAME | Chromosome | chr1 |
+| POS | Start position | 1234567 |
+| MAPQ | Alignment quality | 60 |
+| CIGAR | Alignment details | 150M |
+| SEQ | Sequence | ATCG... |
+| QUAL | Quality score | IIII... |
+| TAGS | Modification tags | MM:Z:m+6A |
 
-### FLAG说明
+### FLAG Description
 
-| FLAG | 含义 |
-|------|------|
-| 0 | 正向比对 |
-| 16 | 反向比对 |
-| 4 | 未比对 |
-| 2048 | PCR重复 |
+| FLAG | Meaning |
+|------|---------|
+| 0 | Forward alignment |
+| 16 | Reverse alignment |
+| 4 | Not aligned |
+| 2048 | PCR duplicate |
 
-### 修饰标签
+### Modification Tags
 
 ```
-MM:Z:m+6A      # m6A修饰类型
-ML:B:C,200     # 置信度 (0-255)
-MP:A:+,10,15   # 修饰位置
+MM:Z:m+6A      # m6A modification type
+ML:B:C,200     # Confidence (0-255)
+MP:A:+,10,15   # Modification position
 ```
 
-## 统计信息
+## Statistics
 
-### 比对率统计
+### Alignment Rate
 
 ```bash
-# 总reads数
+# Total reads
 samtools view -c aligned.bam
 
-# 比对上的reads
+# Aligned reads
 samtools view -c -F 4 aligned.bam
 
-# 未比对的reads
+# Unaligned reads
 samtools view -c -f 4 aligned.bam
 
-# 比对率计算
+# Calculate alignment rate
 echo "scale=2; $(samtools view -c -F 4 aligned.bam) / $(samtools view -c aligned.bam) * 100" | bc
 ```
 
-### 覆盖度统计
+### Coverage Statistics
 
 ```bash
-# 平均覆盖度
+# Average coverage
 samtools depth aligned.bam | awk '{sum+=$3} END {print sum/NR}'
 
-# 覆盖度分布
+# Coverage distribution
 samtools depth aligned.bam | awk '{print $3}' | sort -n | uniq -c
 
-# 使用bamCoverage
+# Using bamCoverage
 bamCoverage -b aligned.bam -of bigwig -o coverage.bw
 ```
 
-### 读长分布
+### Read Length Distribution
 
 ```bash
-# 平均读长
+# Average read length
 samtools view aligned.bam | awk '{print length($10)}' | awk '{sum+=$1} END {print sum/NR}'
 
-# 读长直方图
+# Read length histogram
 samtools view aligned.bam | awk '{print length($10)}' | \
     sort | uniq -c | awk '{print $2"\t"$1}' | head -20
 ```
 
-### 去重统计
+### Deduplication Statistics
 
 ```bash
-# 使用flagstat
+# Using flagstat
 samtools flagstat aligned.rmdup.bam
 
-# 输出示例:
+# Output example:
 # 1000000 + 0 in total (QC-passed reads + QC-failed reads)
 # 5000 + 0 secondary
 # 0 + 0 supplementary
@@ -260,132 +260,132 @@ samtools flagstat aligned.rmdup.bam
 # 10000 + 0 duplicates
 ```
 
-## 常见问题
+## Common Issues
 
-### 问题1: 比对率低
+### Issue 1: Low Alignment Rate
 
-**可能原因:**
-1. 测序质量差
-2. 参考基因组不匹配
-3. 序列太短
+**Possible causes:**
+1. Poor sequencing quality
+2. Reference genome mismatch
+3. Sequences too short
 
-**解决方案:**
+**Solutions:**
 ```bash
-# 使用更宽松参数
+# Use more lenient parameters
 minimap2 -ax map-ont -k 12 -w 5 ...
 
-# 降低最小长度过滤
+# Lower minimum length filtering
 NanoFilt -l 30 -q 5 ...
 ```
 
-### 问题2: 内存不足
+### Issue 2: Out of Memory
 
-**解决方案:**
+**Solutions:**
 ```bash
-# 减小线程数
+# Reduce thread count
 minimap2 -t 4 ...
 
-# 减小batch-size
+# Reduce batch-size
 minimap2 -K 100M ...
 
-# 分批处理
+# Process in batches
 split -l 10000 reads.fastq reads_
 for f in reads_*; do
     minimap2 ... $f >> output.sam
 done
 ```
 
-### 问题3: 修饰标签丢失
+### Issue 3: Modification Tags Lost
 
-**检查:**
+**Check:**
 ```bash
-# 检查MM标签
+# Check MM tags
 samtools view aligned.bam | grep "MM:Z:" | head
 
-# 检查MD标签
+# Check MD tags
 samtools view aligned.bam | grep "MD:Z:" | head
 ```
 
-**原因与解决:**
-- minimap2版本过旧 → 升级到最新版本
-- 未使用--MD参数 → 添加--MD参数
-- 比对后格式转换丢失 → 检查转换步骤
+**Solutions:**
+- minimap2 version too old → Upgrade to latest version
+- Didn't use --MD parameter → Add --MD parameter
+- Format conversion lost tags → Check conversion steps
 
-### 问题4: 去重后覆盖度降低太多
+### Issue 4: Too Much Coverage Reduction After Deduplication
 
-**说明:** 纳米孔数据本身PCR重复率较低，过多去重可能是因为:
-- 同一reads多次比对
-- 建库PCR扩增导致
+**Note:** ONT data has inherently low PCR duplication rate, excessive deduplication may indicate:
+- Same read aligned multiple times
+- Library PCR amplification
 
-**调整:**
+**Adjustment:**
 ```bash
-# 只标记不删除
+# Only mark, don't delete
 samtools markdup -@ 8 aligned.bam output.bam
 
-# 或跳过去重步骤
+# Or skip deduplication step
 ```
 
-### 问题5: CIGAR错误
+### Issue 5: CIGAR Errors
 
-**说明:** minimap2使用简化CIGAR，部分工具不兼容
+**Note:** minimap2 uses simplified CIGAR, some tools may be incompatible
 
-**验证:**
+**Verify:**
 ```bash
-# 检查CIGAR格式
+# Check CIGAR format
 samtools view aligned.bam | head | awk '{print $6}'
 ```
 
-## 完整参数模板
+## Complete Parameter Templates
 
-### for RNA-seq (m6A检测)
+### for RNA-seq (m6A Detection)
 
 ```bash
 #!/bin/bash
-# ONT RNA-seq m6A检测比对流程
+# ONT RNA-seq m6A detection alignment workflow
 
 REF="genome.fa"
 THREADS=16
 
-# 1. 预处理
+# 1. Preprocessing
 pychopper -t "$THREADS" input.fastq tmp.fq
 NanoFilt -l 50 -q 7 tmp.fq > clean.fq
 
-# 2. 比对
+# 2. Alignment
 minimap2 -ax map-ont -t "$THREADS" -uf -k 14 \
     "$REF" \
     clean.fq > aligned.sam
 
-# 3. 处理BAM
+# 3. BAM processing
 samtools view -@ "$THREADS" -Sb aligned.sam | \
     samtools sort -@ "$THREADS" - | \
     samtools markdup -@ "$THREADS" -r - \
     aligned.rmdup.bam
 
-# 4. 索引
+# 4. Index
 samtools index aligned.rmdup.bam
 
-# 清理
+# Cleanup
 rm -f tmp.fq clean.fq aligned.sam
 ```
 
-### for DNA-seq (直接测序)
+### for DNA-seq (Direct Sequencing)
 
 ```bash
 #!/bin/bash
-# ONT DNA-seq 比对流程
+# ONT DNA-seq alignment workflow
 
 REF="genome.fa"
 THREADS=16
 
-# 1. 过滤
+# 1. Filter
 NanoFilt -l 100 -q 10 input.fastq > clean.fq
 
-# 2. 比对 (不使用-uf)
+# 2. Alignment (don't use -uf)
 minimap2 -ax map-ont -t "$THREADS" -k 14 \
     "$REF" \
     clean.fq > aligned.sam
 
-# 3. 处理BAM
+# 3. BAM processing
 samtools view -@ "$THREADS" -Sb aligned.sam | \
     samtools sort -@ "$THREADS" - | \
     samtools markdup -@ "$THREADS" -r - \
@@ -394,31 +394,31 @@ samtools view -@ "$THREADS" -Sb aligned.sam | \
 samtools index aligned.rmdup.bam
 ```
 
-## 验证检查清单
+## Verification Checklist
 
 ```bash
-# 1. 检查BAM文件
+# 1. Check BAM file
 samtools flagstat aligned.rmdup.bam
 
-# 2. 检查修饰标签
+# 2. Check modification tags
 echo "MM tags:"
 samtools view aligned.rmdup.bam | grep -c "MM:Z:"
 
-# 3. 检查覆盖度
+# 3. Check coverage
 samtools depth aligned.rmdup.bam | awk '{sum+=$3} END {print "Avg coverage:", sum/NR}'
 
-# 4. 检查bigWig
+# 4. Check bigWig
 ls -lh processed/*.bw
 
-# 5. 查看reads分布
+# 5. Check reads distribution
 samtools view -c aligned.rmdup.bam
 ```
 
-## 与其他工具比较
+## Comparison with Other Tools
 
-| 工具 | 优点 | 缺点 |
-|------|------|------|
-| Minimap2 | 快速，专为ONT优化 | RNA比对需额外参数 |
-| BWA-MEM | 兼容性好 | 对长读长不够优化 |
-| GraphMap | 高精度 | 速度慢 |
-| NGMLR | 适合变异检测 | 速度慢 |
+| Tool | Advantages | Disadvantages |
+|------|------------|---------------|
+| Minimap2 | Fast, optimized for ONT | RNA alignment needs extra parameters |
+| BWA-MEM | Better compatibility | Not optimized for long reads |
+| GraphMap | High precision | Slow |
+| NGMLR | Good for variant detection | Slow |
