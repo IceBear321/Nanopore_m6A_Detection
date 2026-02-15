@@ -1,31 +1,29 @@
-# Step 3: m6A修饰检测 (modkit)
+# Step 3: m6A Modification Detection (modkit)
 
-## 目的
+## Purpose
 
-使用modkit对纳米孔测序数据进行m6A等修饰碱基的检测和分析。通过pileup分析统计每个潜在修饰位点的覆盖度和修饰频率。
+Use modkit to detect and analyze m6A and other modified bases in Nanopore sequencing data. Pileup analysis calculates coverage and modification frequency at each potential modification site.
 
-## 工具
+## Tool
 
-### modkit
+**modkit**: OFFicially recommended modification detection tool by ONT.
 
-ONT官方推荐的修饰检测工具。
-
-**安装:**
+**Installation:**
 ```bash
-# 方法1: pip安装 (推荐)
+# Method 1: pip installation (recommended)
 pip install modkit
 
-# 方法2: conda安装
+# Method 2: conda installation
 conda install -c bioconda modkit
 
-# 方法3: 源码安装
+# Method 3: Source installation
 git clone https://github.com/nanoporetech/modkit.git
 cd modkit && pip install .
 ```
 
-## 命令详解
+## Command Details
 
-### 基础命令
+### Basic Command
 
 ```bash
 modkit pileup \
@@ -37,94 +35,94 @@ modkit pileup \
     --min-coverage 10
 ```
 
-### 关键参数
+### Key Parameters
 
-| 参数 | 说明 | 推荐值 |
-|------|------|--------|
-| `--ref` | 参考基因组FASTA | (必需) |
-| `--threads` | 线程数 | 16 |
-| `--mod-threshold` | 最小修饰频率 | 0.1 |
-| `--min-coverage` | 最小覆盖度 | 10 |
-| `--prefix` | 输出文件前缀 | "modkit" |
-| `--cpg` | 专门分析CpG位点 | 可选 |
-| `--chunks` | 分块数 | 自动 |
+| Parameter | Description | Recommended |
+|-----------|-------------|-------------|
+| `--ref` | Reference genome FASTA | (required) |
+| `--threads` | Thread count | 16 |
+| `--mod-threshold` | Minimum modification frequency | 0.1 |
+| `--min-coverage` | Minimum coverage | 10 |
+| `--prefix` | Output file prefix | "modkit" |
+| `--cpg` | Analyze CpG sites specifically | optional |
+| `--chunks` | Number of chunks | auto |
 
-### 参数详解
+### Parameter Details
 
 #### --mod-threshold
 
-修饰频率阈值，低于此值的位点不报告。
+Modification frequency threshold, sites below this value are not reported.
 
 ```bash
-# 严格模式 (高置信度)
+# Strict mode (high confidence)
 modkit pileup ... --mod-threshold 0.5
 
-# 平衡模式 (推荐)
+# Balanced mode (recommended)
 modkit pileup ... --mod-threshold 0.1
 
-# 宽松模式 (捕获更多)
+# Loose mode (capture more)
 modkit pileup ... --mod-threshold 0.05
 ```
 
 #### --min-coverage
 
-最小覆盖度要求，过滤低覆盖度位点。
+Minimum coverage requirement, filters low-coverage sites.
 
 ```bash
-# 高覆盖度要求
+# High coverage requirement
 modkit pileup ... --min-coverage 50
 
-# 默认值
+# Default value
 modkit pileup ... --min-coverage 10
 
-# 低覆盖度要求
+# Low coverage requirement
 modkit pileup ... --min-coverage 5
 ```
 
-### pileup 子命令
+### pileup Subcommand
 
 ```bash
-# 标准pileup
+# Standard pileup
 modkit pileup input.bam output_dir --ref genome.fa
 
-# 批量pileup
+# Batch pileup
 modkit pileup batch input_dir output_dir --ref genome.fa
 
-# 生成统计摘要
+# Generate summary statistics
 modkit summary aligned.bam --ref genome.fa
 ```
 
-### probs 子命令
+### probs Subcommand
 
-提取修饰概率信息:
+Extract modification probability information:
 
 ```bash
 modkit probs aligned.bam output.tsv --ref genome.fa
 ```
 
-## 输出文件
+## Output Files
 
 ### m6A_pileup.csv
 
-**列说明:**
+**Column Description:**
 
-| 列名 | 描述 | 示例 |
-|------|------|------|
-| chrom | 染色体 | chr1 |
-| start | 起始位置 | 1234567 |
-| end | 终止位置 | 1234568 |
-| strand | 链方向 | + |
-| mod_base | 修饰碱基 | m6A |
-| count_modified | 修饰reads数 | 85 |
-| count_unmodified | 未修饰reads数 | 15 |
-| coverage | 总覆盖度 | 100 |
-| freq | 修饰频率 | 0.85 |
-| score | 置信度分数 | 25.5 |
-| motif | 序列motif | DRACH |
+| Column | Description | Example |
+|--------|-------------|---------|
+| chrom | Chromosome | chr1 |
+| start | Start position | 1234567 |
+| end | End position | 1234568 |
+| strand | Strand direction | + |
+| mod_base | Modified base | m6A |
+| count_modified | Number of modified reads | 85 |
+| count_unmodified | Number of unmodified reads | 15 |
+| coverage | Total coverage | 100 |
+| freq | Modification frequency | 0.85 |
+| score | Confidence score | 25.5 |
+| motif | Sequence motif | DRACH |
 
 ### m6A_pileup.stats
 
-**内容:**
+**Content:**
 
 ```
 Total sites: 10000
@@ -133,67 +131,67 @@ Medium (0.1 < freq <= 0.5): 3000
 Low (freq <= 0.1): 2000
 ```
 
-## 修饰类型
+## Modification Types
 
-### 支持的修饰碱基
+### Supported Modified Bases
 
-| 修饰 | 标签 | 说明 |
-|------|------|------|
-| m6A | m6A | N6-甲基腺嘌呤 |
-| m5C | m5C | 5-甲基胞嘧啶 |
-| m4C | m4C | N4-甲基胞嘧啶 |
-| m3C | m3C | N3-甲基胞嘧啶 |
-| hm5C | hm5C | 5-羟甲基胞嘧啶 |
+| Modification | Label | Description |
+|-------------|-------|-------------|
+| m6A | m6A | N6-methyladenosine |
+| m5C | m5C | 5-methylcytosine |
+| m4C | m4C | N4-methylcytosine |
+| m3C | m3C | N3-methylcytosine |
+| hm5C | hm5C | 5-hydroxymethylcytosine |
 
-### 指定修饰类型
+### Specify Modification Type
 
 ```bash
-# 只分析m6A
+# Analyze only m6A
 modkit pileup ... --mod-threshold 0.1
 
-# 只分析m5C
+# Analyze only m5C
 modkit pileup ... --only-mods m5C
 
-# 分析所有修饰
+# Analyze all modifications
 modkit pileup ... --only-mods m6A,m5C
 ```
 
-## 结果解读
+## Result Interpretation
 
-### 修饰频率分布
+### Modification Frequency Distribution
 
 ```bash
-# 统计修饰频率
+# Calculate modification frequency
 awk -F',' 'NR>1 {print $9}' m6A_pileup.csv | \
     sort | uniq -c | sort -k2 -n
 
-# 高置信度位点
+# High confidence sites
 awk -F',' 'NR>1 && $9>0.5' m6A_pileup.csv | wc -l
 ```
 
-### 覆盖度分析
+### Coverage Analysis
 
 ```bash
-# 平均覆盖度
+# Average coverage
 awk -F',' 'NR>1 {sum+=$11} END {print sum/NR}' m6A_pileup.csv
 
-# 高覆盖度位点 (>100x)
+# High coverage sites (>100x)
 awk -F',' 'NR>1 && $11>100' m6A_pileup.csv | wc -l
 ```
 
-### Motif分析
+### Motif Analysis
 
 ```bash
-# 提取motif分布
+# Extract motif distribution
 awk -F',' 'NR>1 {print $12}' m6A_pileup.csv | \
     sort | uniq -c | sort -rn | head -10
 
-# 典型m6A motif: DRACH (D=A/G/T, R=A/G, A=A, C=C, H=A/C/T)
+# Typical m6A motif: DRACH (D=A/G/T, R=A/G, A=A, C=C, H=A/C/T)
 ```
 
-## 可视化
+## Visualization
 
-### 曼哈顿图
+### Manhattan Plot
 
 ```python
 import pandas as pd
@@ -201,7 +199,7 @@ import matplotlib.pyplot as plt
 
 df = pd.read_csv('m6A_pileup.csv')
 
-# 简化曼哈顿图
+# Simplified Manhattan plot
 plt.figure(figsize=(12, 4))
 plt.scatter(df['start'], df['freq'], c='blue', alpha=0.5, s=1)
 plt.xlabel('Position')
@@ -210,7 +208,7 @@ plt.title('m6A Distribution')
 plt.savefig('manhattan.png', dpi=300)
 ```
 
-### 覆盖度分布
+### Coverage Distribution
 
 ```python
 plt.figure(figsize=(12, 4))
@@ -221,76 +219,64 @@ plt.title('Coverage Distribution')
 plt.savefig('coverage.png', dpi=300)
 ```
 
-## 常见问题
+## Common Issues
 
-### 问题1: 无修饰位点输出
+### Issue 1: No Modification Sites Output
 
-**检查项:**
-1. 确认BAM中有MM标签
-2. 检查覆盖度是否足够
-3. 确认阈值设置
+**Check:**
+1. Confirm MM tags in BAM
+2. Check coverage sufficiency
+3. Confirm threshold settings
 
 ```bash
-# 检查MM标签
+# Check MM tags
 samtools view aligned.bam | grep -c "MM:Z:"
 
-# 降低阈值
+# Lower threshold
 modkit pileup ... --mod-threshold 0.05 --min-coverage 5
 ```
 
-### 问题2: 修饰频率过低
+### Issue 2: Modification Frequency Too Low
 
-**原因:**
-- 覆盖度不够
-- 样本本身修饰较少
-- 碱基识别模型问题
+**Cause:**
+- Insufficient coverage
+- Few modifications in sample
+- Basecalling model issue
 
-**解决方案:**
+**Solution:**
 ```bash
-# 增加覆盖度要求
+# Increase coverage requirement
 modkit pileup ... --mod-threshold 0.05
 
-# 检查碱基识别是否正确
+# Check basecalling
 samtools view aligned.bam | head | grep "MM:Z:"
 ```
 
-### 问题3: 运行时间过长
+### Issue 3: Runtime Too Long
 
-**解决方案:**
+**Solution:**
 ```bash
-# 增加线程数
+# Increase thread count
 modkit pileup ... --threads 32
 
-# 减少分块
+# Reduce chunks
 modkit pileup ... --chunks 4
 ```
 
-### 问题4: 内存不足
+### Issue 4: Insufficient Memory
 
-**解决方案:**
+**Solution:**
 ```bash
-# 减少线程数
+# Reduce thread count
 modkit pileup ... --threads 8
 
-# 增加分块数(减少内存)
+# Increase chunks (reduce memory)
 modkit pileup ... --chunks 16
 ```
 
-### 问题5: 与已知m6A位点不匹配
+## Parameter Optimization
 
-**可能原因:**
-1. 参考基因组版本不同
-2. 阈值设置过于严格
-3. 覆盖度不够
-
-**解决:**
-- 使用相同基因组版本
-- 降低阈值重新分析
-- 增加测序深度
-
-## 参数优化
-
-### 高精度模式
+### High Precision Mode
 
 ```bash
 modkit pileup input.bam output \
@@ -300,7 +286,7 @@ modkit pileup input.bam output \
     --threads 32
 ```
 
-### 灵敏度模式
+### Sensitivity Mode
 
 ```bash
 modkit pileup input.bam output \
@@ -310,7 +296,7 @@ modkit pileup input.bam output \
     --threads 16
 ```
 
-### 平衡模式
+### Balanced Mode
 
 ```bash
 modkit pileup input.bam output \
@@ -320,24 +306,24 @@ modkit pileup input.bam output \
     --threads 16
 ```
 
-## 验证
+## Verification
 
-### 与其他方法比较
+### Compare with Other Methods
 
-- **MeRIP-seq**: 传统免疫沉淀方法
-- **m6A-seq**: m6A特异性测序
-- **SCARLET**: 单分子验证金标准
+- **MeRIP-seq**: Traditional immunoprecipitation method
+- **m6A-seq**: m6A-specific sequencing
+- **SCARLET**: Single-molecule validation gold standard
 
-### 统计检验
+### Statistical Testing
 
 ```python
-# 计算修饰率置信区间
+# Calculate confidence interval of modification rate
 import scipy.stats as stats
 
 coverage = df['coverage'].values
 freq = df['freq'].values
 
-# 二项分布置信区间
+# Binomial distribution confidence interval
 for i in range(len(coverage)):
     n = coverage[i]
     k = int(n * freq[i])
@@ -345,7 +331,7 @@ for i in range(len(coverage)):
     print(f"Site {i}: {freq[i]:.3f} (95% CI: {ci[0]/n:.3f}-{ci[1]/n:.3f})")
 ```
 
-## 引用
+## Citation
 
 - **modkit**: Oxford Nanopore Technologies. https://github.com/nanoporetech/modkit
-- **原始文献**: Liu, H. et al. (2024). Accurate detection of m6A RNA modifications in native nanopore sequencing. Nature Methods.
+- **Original Paper**: Liu, H. et al. (2024). Accurate detection of m6A RNA modifications in native nanopore sequencing. Nature Methods.
