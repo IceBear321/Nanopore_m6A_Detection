@@ -1,0 +1,54 @@
+# 忽略以下文件
+
+# 原始数据文件
+*.pod5
+*.fastq
+*.fastq.gz
+*.fq
+
+# 比对文件
+*.sam
+*.bam
+*.bam.bai
+*.cram
+*.crai
+
+# 索引文件
+*.mmi
+*.fai
+
+# 结果文件
+*.csv
+*.tsv
+*.bw
+*.bigWig
+
+# 日志文件
+*.log
+logs/
+
+# 临时文件
+*.tmp
+tmp/
+*_tmp/
+
+# 输出目录
+results/
+output/
+processed/
+
+# 参考基因组
+reference/*.fa
+reference/*.fna
+!reference/README.md
+
+# IDE和系统文件
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# conda环境
+conda-env/
+envs/
